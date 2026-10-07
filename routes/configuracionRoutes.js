@@ -6,10 +6,8 @@ const {
   obtenerConfiguracion,
   subirQrYape,
   subirQrPlin,
-  subirQrBcp,
 } = require("../controllers/configuracionController");
 router.get("/", obtenerConfiguracion);
 router.post("/qr-yape", protegerRuta, upload.single("imagen"), subirQrYape);
 router.post("/qr-plin", protegerRuta, upload.single("imagen"), subirQrPlin);
-router.post("/qr-bcp", protegerRuta, upload.single("imagen"), subirQrBcp);
 module.exports = router;

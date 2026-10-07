@@ -25,13 +25,5 @@ const soloAdmin = (req, res, next) => {
   next();
 };
 
-const soloMayorista = (req, res, next) => {
-  if (req.usuarioRol !== "mayorista") {
-    return res.status(403).json({ mensaje: "Solo cuentas mayoristas pueden hacer esto" });
-  }
-  next();
-};
-
 module.exports = protegerRuta;
 module.exports.soloAdmin = soloAdmin;
-module.exports.soloMayorista = soloMayorista;

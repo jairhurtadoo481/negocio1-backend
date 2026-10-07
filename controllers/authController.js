@@ -19,10 +19,6 @@ const login = async (req, res) => {
       return res.status(401).json({ mensaje: "Credenciales invalidas" });
     }
 
-    if (usuario.rol === "trabajador" && usuario.activo === false) {
-      return res.status(403).json({ mensaje: "Tu cuenta esta suspendida temporalmente. Contacta al administrador." });
-    }
-
     const token = generarToken(usuario._id, usuario.rol);
     res.json({
       token,

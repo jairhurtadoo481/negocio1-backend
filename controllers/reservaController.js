@@ -1,13 +1,6 @@
 const Reserva = require("../models/Reserva");
-const Usuario = require("../models/Usuario");
 const Producto = require("../models/Producto");
-const Configuracion = require("../models/Configuracion");
 const subirImagen = require("../config/cloudinaryUpload");
-
-const nombreSucursal = {
-  sucursal1: "Sucursal 1",
-  sucursal2: "Sucursal 2",
-};
 
 const obtenerSiguienteNumero = async () => {
   const ultima = await Reserva.findOne({ numero: { $exists: true, $type: "number" } }).sort({ numero: -1 });
@@ -64,13 +57,14 @@ const crearReserva = async (req, res) => {
         nombre: producto.nombre,
         codigo: producto.codigo || "",
         imagen: producto.imagenes && producto.imagenes.length > 0 ? producto.imagenes[0] : null,
-        sucursal: producto.sucursal || "sucursal1",
         talla: item.talla,
         cantidad: item.cantidad,
         precioUnitario,
         tieneOferta: ofertaActiva,
       });
     }
+
+    if (cliente.ciudad === "fuera") requierePagoCompleto = true;
 
     const numero = await obtenerSiguienteNumero();
 
@@ -91,86 +85,6 @@ const crearReserva = async (req, res) => {
   }
 };
 
-const crearReservaMayorista = async (req, res) => {
-  try {
-    const usuarioMayorista = await Usuario.findById(req.usuarioId);
-    if (!usuarioMayorista) {
-      return res.status(404).json({ mensaje: "Usuario no encontrado" });
-    }
-
-    const { items, notas } = req.body;
-
-    if (!items || items.length === 0) {
-      return res.status(400).json({ mensaje: "La reserva debe tener al menos un producto" });
-    }
-
-    const config = await Configuracion.findOne();
-    const minimoRequerido = config ? config.minimoMayorista : 10;
-
-    const cantidadTotal = items.reduce((acc, item) => acc + Number(item.cantidad || 0), 0);
-    if (cantidadTotal < minimoRequerido) {
-      return res.status(400).json({
-        mensaje: `La cantidad minima para reserva mayorista es de ${minimoRequerido} pares. Tienes ${cantidadTotal}.`,
-      });
-    }
-
-    let total = 0;
-    const itemsProcesados = [];
-
-    for (const item of items) {
-      const producto = await Producto.findById(item.producto);
-      if (!producto) {
-        return res.status(404).json({ mensaje: `Producto no encontrado: ${item.producto}` });
-      }
-
-      if (producto.precioMayorista === null || producto.precioMayorista === undefined) {
-        return res.status(400).json({
-          mensaje: `El producto "${producto.nombre}" no tiene precio mayorista configurado`,
-        });
-      }
-
-      const precioUnitario = producto.precioMayorista;
-      total += precioUnitario * item.cantidad;
-
-      itemsProcesados.push({
-        producto: producto._id,
-        nombre: producto.nombre,
-        codigo: producto.codigo || "",
-        imagen: producto.imagenes && producto.imagenes.length > 0 ? producto.imagenes[0] : null,
-        sucursal: producto.sucursal || "sucursal1",
-        talla: item.talla,
-        cantidad: item.cantidad,
-        precioUnitario,
-        tieneOferta: false,
-      });
-    }
-
-    const numero = await obtenerSiguienteNumero();
-
-    const reserva = new Reserva({
-      numero,
-      tipo: "mayorista",
-      items: itemsProcesados,
-      cliente: {
-        nombre: usuarioMayorista.nombre,
-        celular: usuarioMayorista.celular || "N/A",
-        ciudad: "andahuaylas",
-        entregaDomicilio: false,
-        direccion: "",
-      },
-      metodoPago: null,
-      total,
-      requierePagoCompleto: false,
-      notasMayorista: notas || "",
-    });
-
-    await reserva.save();
-    res.status(201).json(reserva);
-  } catch (error) {
-    res.status(400).json({ mensaje: "Error al crear reserva mayorista", error: error.message });
-  }
-};
-
 const subirComprobante = async (req, res) => {
   try {
     const reserva = await Reserva.findById(req.params.id);
@@ -182,7 +96,7 @@ const subirComprobante = async (req, res) => {
       return res.status(400).json({ mensaje: "No se envio ninguna imagen de comprobante" });
     }
 
-    const resultado = await subirImagen(req.file.buffer, "zapatillas-marcelo/comprobantes");
+    const resultado = await subirImagen(req.file.buffer, "tejidos-macu/comprobantes");
     reserva.comprobante = resultado.secure_url;
     await reserva.save();
 
@@ -240,8 +154,8 @@ const actualizarEstadoReserva = async (req, res) => {
 
 const mensajeEstado = {
   pendiente: "Tu pago esta siendo verificado.",
-  atendido: "Estamos coordinando tu compra, en breve te llamaremos.",
-  listo_recoger: "Tu pago fue confirmado. Ya puedes pasar a recoger tu pedido.",
+  atendido: "Estamos tejiendo y coordinando tu pedido, en breve te escribiremos.",
+  listo_recoger: "Tu pedido está listo. Coordinaremos la entrega contigo.",
   entregado: "Este pedido ya fue entregado. Gracias por tu compra!",
   suspendido: "Hubo un problema con este pedido, contactanos por WhatsApp.",
 };
@@ -263,13 +177,10 @@ const seguimientoReserva = async (req, res) => {
       return res.status(404).json({ mensaje: "No se encontro ningun pedido con esos datos" });
     }
 
-    const sucursales = [...new Set(reserva.items.map((i) => nombreSucursal[i.sucursal] || "Sucursal 1"))];
-
     res.json({
       numero: reserva.numero,
       estado: reserva.estado,
       mensaje: mensajeEstado[reserva.estado] || "",
-      sucursales,
       total: reserva.total,
       items: reserva.items,
       createdAt: reserva.createdAt,
@@ -293,7 +204,6 @@ const eliminarReserva = async (req, res) => {
 
 module.exports = {
   crearReserva,
-  crearReservaMayorista,
   subirComprobante,
   obtenerReservas,
   actualizarEstadoReserva,

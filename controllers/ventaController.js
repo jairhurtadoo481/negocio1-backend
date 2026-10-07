@@ -1,29 +1,30 @@
 ﻿const Venta = require("../models/Venta");
 const Producto = require("../models/Producto");
 const Usuario = require("../models/Usuario");
-const Turno = require("../models/Turno");
 
 const registrarVenta = async (req, res) => {
   try {
-    const { codigo, talla, cantidad, descuento } = req.body;
+    const { productoId, codigo, talla, cantidad, descuento } = req.body;
 
-    if (!codigo || !talla || !cantidad || cantidad <= 0) {
-      return res.status(400).json({ mensaje: "Debes indicar codigo, talla y cantidad (mayor a 0)" });
+    if ((!productoId && !codigo) || !talla || !cantidad || cantidad <= 0) {
+      return res.status(400).json({ mensaje: "Debes indicar el producto, el tamaño y la cantidad (mayor a 0)" });
     }
 
-    const producto = await Producto.findOne({ codigo: codigo.trim() });
+    const producto = productoId
+      ? await Producto.findById(productoId)
+      : await Producto.findOne({ codigo: String(codigo).trim() });
     if (!producto) {
-      return res.status(404).json({ mensaje: `No se encontro ningun producto con el codigo ${codigo}` });
+      return res.status(404).json({ mensaje: "No se encontró el producto" });
     }
 
     const itemTalla = producto.tallas.find((t) => t.talla === talla);
     if (!itemTalla) {
-      return res.status(404).json({ mensaje: `El producto #${codigo} no tiene la talla ${talla}` });
+      return res.status(404).json({ mensaje: `"${producto.nombre}" no tiene el tamaño ${talla}` });
     }
 
     if (itemTalla.stock < cantidad) {
       return res.status(400).json({
-        mensaje: `Stock insuficiente para #${codigo} talla ${talla}. Disponible: ${itemTalla.stock}`,
+        mensaje: `Stock insuficiente para "${producto.nombre}" (${talla}). Disponible: ${itemTalla.stock}`,
       });
     }
 
@@ -52,30 +53,24 @@ const registrarVenta = async (req, res) => {
     await producto.save();
 
     let vendedorNombre = "";
-    let turnoId = null;
 
     if (req.usuarioId) {
       const vendedor = await Usuario.findById(req.usuarioId);
       if (vendedor) vendedorNombre = vendedor.nombre;
 
-      const turnoAbierto = await Turno.findOne({ trabajador: req.usuarioId, abierto: true });
-      if (turnoAbierto) turnoId = turnoAbierto._id;
     }
 
     const venta = new Venta({
       producto: producto._id,
       codigo: producto.codigo,
       nombre: producto.nombre,
-      marca: producto.marca,
       imagen: producto.imagenes && producto.imagenes.length > 0 ? producto.imagenes[0] : null,
-      sucursal: producto.sucursal,
       talla,
       cantidad,
       precioUnitario,
       descuento: descuentoAplicado,
       vendedorId: req.usuarioId || null,
       vendedorNombre,
-      turnoId,
     });
 
     await venta.save();
@@ -88,26 +83,10 @@ const registrarVenta = async (req, res) => {
 
 const obtenerVentas = async (req, res) => {
   try {
-    const filtro = {};
-    if (req.usuarioRol === "trabajador") {
-      filtro.vendedorId = req.usuarioId;
-    }
-    const ventas = await Venta.find(filtro).sort({ createdAt: -1 });
+    const ventas = await Venta.find().sort({ createdAt: -1 });
     res.json(ventas);
   } catch (error) {
     res.status(500).json({ mensaje: "Error al obtener ventas", error: error.message });
-  }
-};
-
-const buscarProductoPorCodigo = async (req, res) => {
-  try {
-    const producto = await Producto.findOne({ codigo: req.params.codigo.trim() });
-    if (!producto) {
-      return res.status(404).json({ mensaje: `No se encontro ningun producto con el codigo ${req.params.codigo}` });
-    }
-    res.json(producto);
-  } catch (error) {
-    res.status(500).json({ mensaje: "Error al buscar producto", error: error.message });
   }
 };
 
@@ -154,7 +133,6 @@ const eliminarVenta = async (req, res) => {
 module.exports = {
   registrarVenta,
   obtenerVentas,
-  buscarProductoPorCodigo,
   actividadReciente,
   eliminarVenta,
 };

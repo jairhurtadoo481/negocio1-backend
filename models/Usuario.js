@@ -8,7 +8,7 @@ const usuarioSchema = new mongoose.Schema({
   password: { type: String, required: true },
   rol: {
     type: String,
-    enum: ["admin", "trabajador", "mayorista"],
+    enum: ["admin"],
     default: "admin",
   },
   activo: { type: Boolean, default: true },

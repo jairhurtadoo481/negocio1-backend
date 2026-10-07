@@ -5,7 +5,6 @@ const itemReservaSchema = new mongoose.Schema({
   nombre: { type: String, required: true },
   codigo: { type: String, default: "" },
   imagen: { type: String, default: null },
-  sucursal: { type: String, default: "sucursal1" },
   talla: { type: String, required: true },
   cantidad: { type: Number, required: true, default: 1 },
   precioUnitario: { type: Number, required: true },
@@ -15,7 +14,7 @@ const itemReservaSchema = new mongoose.Schema({
 const reservaSchema = new mongoose.Schema({
   tipo: {
     type: String,
-    enum: ["web", "mayorista"],
+    enum: ["web"],
     default: "web",
   },
   numero: { type: Number, required: true, unique: true },
@@ -26,7 +25,7 @@ const reservaSchema = new mongoose.Schema({
     ciudad: {
       type: String,
       required: true,
-      enum: ["andahuaylas", "fuera"],
+      enum: ["ica", "fuera"],
     },
     entregaDomicilio: { type: Boolean, default: false },
     direccion: { type: String, default: "" },
@@ -44,7 +43,6 @@ const reservaSchema = new mongoose.Schema({
   },
   requierePagoCompleto: { type: Boolean, default: false },
   total: { type: Number, required: true },
-  notasMayorista: { type: String, default: "" },
 }, { timestamps: true });
 
 module.exports = mongoose.model("Reserva", reservaSchema);
